@@ -1,3 +1,4 @@
-[report]
+[paths]
 source = shotgun_api3
+[report]
 omit = shotgun_api3/lib/*
