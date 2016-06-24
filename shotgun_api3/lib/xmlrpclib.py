@@ -136,21 +136,26 @@ Exported functions:
   loads          Convert an XML-RPC packet to unmarshalled data plus a method
                  name (None if not present).
 """
+from past.builtins import cmp
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 
 import re, string, time, operator
 
 from types import *
 import socket
 import errno
-import httplib
+import http.client
 
 # --------------------------------------------------------------------
 # Internal stuff
 
 try:
-    unicode
+    str
 except NameError:
-    unicode = None # unicode support not available
+    str = None # unicode support not available
 
 try:
     import datetime
@@ -165,8 +170,8 @@ except NameError:
 
 def _decode(data, encoding, is8bit=re.compile("[\x80-\xff]").search):
     # decode non-ascii string (if possible)
-    if unicode and encoding and is8bit(data):
-        data = unicode(data, encoding)
+    if str and encoding and is8bit(data):
+        data = str(data, encoding)
     return data
 
 def escape(s, replace=string.replace):
@@ -174,7 +179,7 @@ def escape(s, replace=string.replace):
     s = replace(s, "<", "&lt;")
     return replace(s, ">", "&gt;",)
 
-if unicode:
+if str:
     def _stringify(string):
         # convert to 7-bit ascii if possible
         try:
@@ -188,8 +193,8 @@ else:
 #__version__ = "1.0.1"
 
 # xmlrpc integer limits
-MAXINT =  2L**31-1
-MININT = -2L**31
+MAXINT =  2**31-1
+MININT = -2**31
 
 # --------------------------------------------------------------------
 # Error constants (from Dan Libby's specification at
@@ -292,7 +297,7 @@ if _bool_is_builtin:
     # to avoid breaking code which references xmlrpclib.{True,False}
     True, False = True, False
 else:
-    class Boolean:
+    class Boolean(object):
         """Boolean-value wrapper.
         
         Use True or False to generate a "boolean" XML-RPC value.
@@ -318,7 +323,7 @@ else:
         def __int__(self):
             return self.value
         
-        def __nonzero__(self):
+        def __bool__(self):
             return self.value
     
     True, False = Boolean(1), Boolean(0)

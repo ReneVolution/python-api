@@ -1,4 +1,3 @@
-from __future__ import generators
 """
 httplib2
 
@@ -11,6 +10,8 @@ Changelog:
 2007-08-18, Rick: Modified so it's able to use a socks proxy if needed.
 
 """
+from __future__ import generators
+from __future__ import print_function
 
 __author__ = "Joe Gregorio (joe@bitworking.org)"
 __copyright__ = "Copyright 2006, Joe Gregorio"
@@ -23,6 +24,7 @@ __contributors__ = ["Thomas Broyer (t.broyer@ltgt.net)",
                     "Louis Nyffenegger"]
 __license__ = "MIT"
 __version__ = "0.9.1"
+
 
 import re
 import sys
@@ -43,6 +45,7 @@ import calendar
 import time
 import random
 import errno
+from past.types import basestring
 try:
     from hashlib import sha1 as _sha, md5 as _md5
 except ImportError:
@@ -783,7 +786,7 @@ class ProxyInfo(object):
                 self.proxy_rdns, self.proxy_user, self.proxy_pass)
 
     def isgood(self):
-        return (self.proxy_host != None) and (self.proxy_port != None)
+        return (self.proxy_host is not None) and (self.proxy_port is not None)
 
     def applies_to(self, hostname):
         return not self.bypass_host(hostname)
@@ -909,23 +912,23 @@ class HTTPConnectionWithTimeout(httplib.HTTPConnection):
                     self.sock.settimeout(self.timeout)
                     # End of difference from httplib.
                 if self.debuglevel > 0:
-                    print "connect: (%s, %s) ************" % (self.host, self.port)
+                    print("connect: (%s, %s) ************" % (self.host, self.port))
                     if use_proxy:
-                        print "proxy: %s ************" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass))
+                        print("proxy: %s ************" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass)))
 
                 self.sock.connect((self.host, self.port) + sa[2:])
-            except socket.error, msg:
+            except socket.error as msg:
                 if self.debuglevel > 0:
-                    print "connect fail: (%s, %s)" % (self.host, self.port)
+                    print("connect fail: (%s, %s)" % (self.host, self.port))
                     if use_proxy:
-                        print "proxy: %s" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass))
+                        print("proxy: %s" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass)))
                 if self.sock:
                     self.sock.close()
                 self.sock = None
                 continue
             break
         if not self.sock:
-            raise socket.error, msg
+            raise socket.error(msg)
 
 class HTTPSConnectionWithTimeout(httplib.HTTPSConnection):
     """
@@ -1035,7 +1038,7 @@ class HTTPSConnectionWithTimeout(httplib.HTTPSConnection):
                     sock, self.key_file, self.cert_file,
                     self.disable_ssl_certificate_validation, self.ca_certs)
                 if self.debuglevel > 0:
-                    print "connect: (%s, %s)" % (self.host, self.port)
+                    print("connect: (%s, %s)" % (self.host, self.port))
                     if use_proxy:
                         print "proxy: %s" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass))
                 if not self.disable_ssl_certificate_validation:
@@ -1045,7 +1048,7 @@ class HTTPSConnectionWithTimeout(httplib.HTTPSConnection):
                         raise CertificateHostnameMismatch(
                             'Server presented certificate that does not match '
                             'host %s: %s' % (hostname, cert), hostname, cert)
-            except ssl_SSLError, e:
+            except ssl_SSLErrora as e:
                 if sock:
                     sock.close()
                 if self.sock:
@@ -1061,18 +1064,18 @@ class HTTPSConnectionWithTimeout(httplib.HTTPSConnection):
                     raise
             except (socket.timeout, socket.gaierror):
                 raise
-            except socket.error, msg:
+            except socket.error as msg:
                 if self.debuglevel > 0:
-                    print "connect fail: (%s, %s)" % (self.host, self.port)
+                    print("connect fail: (%s, %s)" % (self.host, self.port))
                     if use_proxy:
-                        print "proxy: %s" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass))
+                        print("proxy: %s" % str((proxy_host, proxy_port, proxy_rdns, proxy_user, proxy_pass)))
                 if self.sock:
                     self.sock.close()
                 self.sock = None
                 continue
             break
         if not self.sock:
-            raise socket.error, msg
+            raise socket.error(msg)
 
 SCHEME_TO_CONNECTION = {
     'http': HTTPConnectionWithTimeout,
@@ -1279,7 +1282,7 @@ class Http(object):
             except ssl_SSLError:
                 conn.close()
                 raise
-            except socket.error, e:
+            except socket.error as e:
                 err = 0
                 if hasattr(e, 'args'):
                     err = getattr(e, 'args')[0]
@@ -1606,7 +1609,7 @@ class Http(object):
                     content = ""
                 else:
                     (response, content) = self._request(conn, authority, uri, request_uri, method, body, headers, redirections, cachekey)
-        except Exception, e:
+        except Exception as e:
             if self.force_exception_to_status_code:
                 if isinstance(e, HttpLib2ErrorWithResponse):
                     response = e.response
@@ -1692,4 +1695,4 @@ class Response(dict):
         if name == 'dict':
             return self
         else:
-            raise AttributeError, name
+            raise AttributeError(name)

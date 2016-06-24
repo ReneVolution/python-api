@@ -1,11 +1,12 @@
 """Base class for Shotgun API tests."""
+from __future__ import absolute_import
 import os
 import re
 import unittest
 from ConfigParser import ConfigParser
 
 
-import mock
+from . import mock
 
 import shotgun_api3 as api
 from shotgun_api3.shotgun import json

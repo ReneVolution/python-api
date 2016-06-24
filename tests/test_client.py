@@ -1,6 +1,7 @@
 """Tests against the client software that do not involve calling the
 CRUD functions. These tests always use a mock http connection so not not
 need a live server to run against."""
+from __future__ import absolute_import
 
 import base64
 import datetime
@@ -17,12 +18,12 @@ import platform
 import sys
 import time
 import unittest
-import mock
+from . import mock
 
 import shotgun_api3.lib.httplib2 as httplib2
 import shotgun_api3 as api
 from shotgun_api3.shotgun import ServerCapabilities, SG_TIMEZONE
-import base
+from . import base
 
 class TestShotgunClient(base.MockTestBase):
     '''Test case for shotgun api with server interactions mocked.'''
@@ -260,7 +261,7 @@ class TestShotgunClient(base.MockTestBase):
 
         try:
             self.sg.info()
-        except api.Fault, e:
+        except api.Fault as e:
             self.assertEqual("Go BANG", str(e))
 
     def test_call_rpc(self):

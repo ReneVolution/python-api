@@ -113,9 +113,13 @@ Below is a non-exhaustive list of things that we still need to implement:
 - There is no validation or sanitation
 
 """
+from future import standard_library
+standard_library.install_aliases()
+from past.builtins import basestring
+from builtins import object
 
 import os, datetime
-import cPickle as pickle
+import pickle as pickle
 
 from .. import sg_timezone, ShotgunError
 from ..shotgun import _Config
@@ -293,7 +297,7 @@ class Shotgun(object):
         if field_name is None:
             return self._schema[entity_type]
         else:
-            return dict((k, v) for k, v in self._schema[entity_type].items() if k == field_name)
+            return dict((k, v) for k, v in list(self._schema[entity_type].items()) if k == field_name)
 
 
     def find(self, entity_type, filters, fields=None, order=None, filter_operator=None, limit=0, retired_only=False, page=0):
@@ -345,7 +349,7 @@ class Shotgun(object):
 
             resolved_filters_2.append(new_filter)
 
-        results = [row for row in self._db[entity_type].values() if self._row_matches_filters(entity_type, row, resolved_filters_2, filter_operator, retired_only)]
+        results = [row for row in list(self._db[entity_type].values()) if self._row_matches_filters(entity_type, row, resolved_filters_2, filter_operator, retired_only)]
 
         # handle the ordering of the recordset
         if order:
@@ -446,7 +450,7 @@ class Shotgun(object):
         row = self._db[entity_type][entity_id]
         self._update_row(entity_type, row, data)
 
-        return [dict((field, item) for field, item in row.items() if field in data or field in ("type", "id"))]
+        return [dict((field, item) for field, item in list(row.items()) if field in data or field in ("type", "id"))]
 
     def delete(self, entity_type, entity_id):
         self._validate_entity_type(entity_type)
@@ -487,9 +491,9 @@ class Shotgun(object):
         if "id" in data or "type" in data:
             raise ShotgunError("Can't set id or type on create or update")
 
-        self._validate_entity_fields(entity_type, data.keys())
+        self._validate_entity_fields(entity_type, list(data.keys()))
 
-        for field, item in data.items():
+        for field, item in list(data.items()):
             
             if item is None:
                 # none is always ok

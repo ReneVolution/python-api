@@ -28,37 +28,58 @@
  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
+from __future__ import absolute_import
+from __future__ import unicode_literals
 
 
 import base64
-import cookielib    # used for attachment upload
-import cStringIO    # used for attachment upload
 import datetime
-import logging
-import mimetools    # used for attachment upload
-import os
 import re
 import copy
 import stat         # used for attachment upload
 import sys
 import time
-import types
 import urllib
-import urllib2      # used for image upload
-import urlparse
 import shutil       # used for attachment download
 
-# use relative import for versions >=2.5 and package import for python versions <2.5
+from io import IOBase
+
+try:
+    import http.cookiejar as cookielib    # used for attachment upload
+except ImportError:  # fallback for Python 2
+    import cookielib
+
+try:
+    from io import BytesIO as cStringIO    # used for attachment upload
+except ImportError:
+    import cStringIO
+
+
+try:
+    from urllib.error import HTTPError, URLError
+    from urllib.request import (BaseHandler, Request, urlopen, HTTPHandler,
+                                ProxyHandler, HTTPCookieProcessor,
+                                install_opener, build_opener)
+
+    from urllib.parse import urlparse
+except ImportError:  # Python 2 fallback
+    import urlparse
+    from urllib2 import (HTTPError, URLError, Request, urlopen, BaseHandler,
+                         HTTPHandler, ProxyHandler, HTTPCookieProcessor,
+                         install_opener, build_opener)
+
+
+# relative import for versions >=2.5 and package import for python versions <2.5
 if (sys.version_info[0] > 2) or (sys.version_info[0] == 2 and sys.version_info[1] >= 6):
-    from sg_26 import *
+    from .sg_26 import *
 elif (sys.version_info[0] > 2) or (sys.version_info[0] == 2 and sys.version_info[1] >= 5):
-    from sg_25 import *
+    from .sg_25 import *
 else:
-    from sg_24 import *
+    from .sg_24 import *
 
 # mimetypes imported in version specific imports
-mimetypes.add_type('video/webm','.webm') # webm and mp4 seem to be missing
-mimetypes.add_type('video/mp4', '.mp4')  # from some OS/distros
+mimetypes.add_type('video/webm','.webm')  # webm and mp4 seem to be missing
+mimetypes.add_type('video/mp4', '.mp4')   # from some OS/distros
 
 LOG = logging.getLogger("shotgun_api3")
 LOG.setLevel(logging.WARN)
@@ -69,10 +90,11 @@ SG_TIMEZONE = SgTimezone()
 NO_SSL_VALIDATION = False
 try:
     import ssl        
-except ImportError, e:
+except ImportError as e:
     if "SHOTGUN_FORCE_CERTIFICATE_VALIDATION" in os.environ:
-        raise ImportError("%s. SHOTGUN_FORCE_CERTIFICATE_VALIDATION environment variable prevents "
-                          "disabling SSL certificate validation." % e)
+        raise ImportError("%s. SHOTGUN_FORCE_CERTIFICATE_VALIDATION environment"
+                          " variable prevents disabling SSL certificate "
+                          "validation." % e)
     LOG.debug("ssl not found, disabling certificate validation")
     NO_SSL_VALIDATION = True
 
@@ -83,21 +105,26 @@ __version__ = "3.0.32.dev"
 # ----------------------------------------------------------------------------
 # Errors
 
+
 class ShotgunError(Exception):
     """Base for all Shotgun API Errors"""
     pass
+
 
 class ShotgunFileDownloadError(ShotgunError):
     """Exception for file download-related errors"""
     pass
 
+
 class Fault(ShotgunError):
     """Exception when server side exception detected."""
     pass
 
+
 class AuthenticationFault(Fault):
-    """Exception when the server side reports an error related to authentication"""
+    """Exception when the server side reports an authentication error"""
     pass
+
 
 class MissingTwoFactorAuthenticationFault(Fault):
     """Exception when the server side reports an error related to missing
@@ -268,7 +295,7 @@ class _Config(object):
         # another Shotgun API instance.
         self.raw_http_proxy = None
         # if a proxy server is being used, the proxy_handler
-        # below will contain a urllib2.ProxyHandler instance
+        # below will contain a ProxyHandler instance
         # which can be used whenever a request needs to be made.
         self.proxy_handler = None
         self.proxy_server = None
@@ -463,7 +490,7 @@ class Shotgun(object):
             else:
                 auth_string = ""
             proxy_addr = "http://%s%s:%d" % (auth_string, self.config.proxy_server, self.config.proxy_port)
-            self.config.proxy_handler = urllib2.ProxyHandler({self.config.scheme : proxy_addr})
+            self.config.proxy_handler = ProxyHandler({self.config.scheme: proxy_addr})
 
         if ensure_ascii:
             self._json_loads = self._json_loads_ascii
@@ -638,7 +665,7 @@ class Shotgun(object):
         if isinstance(filters, (list, tuple)):
             filters = _translate_filters(filters, filter_operator)
         elif filter_operator:
-            #TODO:Not sure if this test is correct, replicated from prev api
+            # TODO: Not sure if this test is correct, replicated from prev api
             raise ShotgunError("Deprecated: Use of filter_operator for find()"
                 " is not valid any more. See the documentation on find()")
 
@@ -721,7 +748,7 @@ class Shotgun(object):
         if order:
             sort_list = []
             for sort in order:
-                if sort.has_key('column'):
+                if 'column' in sort:
                     # TODO: warn about deprecation of 'column' param name
                     sort['field_name'] = sort['column']
                 sort.setdefault("direction", "asc")
@@ -1452,7 +1479,7 @@ class Shotgun(object):
             resp = opener.open(url, params)
             result = resp.read()
             # response headers are in str(resp.info()).splitlines()
-        except urllib2.HTTPError, e:
+        except HTTPError as e:
             if e.code == 500:
                 raise ShotgunError("Server encountered an internal error. "
                     "\n%s\n(%s)\n%s\n\n" % (url, self._sanitize_auth_params(params), e))
@@ -1565,7 +1592,7 @@ class Shotgun(object):
         # Perform the request
         try:
             result = opener.open(url, params).read()
-        except urllib2.HTTPError, e:
+        except HTTPError as e:
             if e.code == 500:
                 raise ShotgunError("Server encountered an internal error. "
                     "\n%s\n(%s)\n%s\n\n" % (url, self._sanitize_auth_params(params), e))
@@ -1622,7 +1649,7 @@ class Shotgun(object):
         if file_path:
             try:
                 fp = open(file_path, 'wb')
-            except IOError, e:
+            except IOError as e:
                 raise IOError("Unable to write Attachment to disk using "\
                               "file_path. %s" % e) 
 
@@ -1635,16 +1662,16 @@ class Shotgun(object):
             self.set_up_auth_cookie()
    
         try:
-            request = urllib2.Request(url)
+            request = Request(url)
             request.add_header('user-agent', "; ".join(self._user_agents))
-            req = urllib2.urlopen(request)
+            req = urlopen(request)
             if file_path:
                 shutil.copyfileobj(req, fp)
             else:
                 attachment = req.read()
         # 400 [sg] Attachment id doesn't exist or is a local file
         # 403 [s3] link is invalid
-        except urllib2.URLError, e:
+        except URLError as e:
             if file_path:
                 fp.close()
             err = "Failed to open %s\n%s" % (url, e)
@@ -1673,7 +1700,7 @@ class Shotgun(object):
                 return attachment
 
     def set_up_auth_cookie(self):
-        """Sets up urllib2 with a cookie for authentication on the Shotgun 
+        """Sets up urllib(2) with a cookie for authentication on the Shotgun
         instance.
         """
         sid = self.get_session_token()
@@ -1682,9 +1709,9 @@ class Shotgun(object):
             self.config.server, False, False, "/", True, False, None, True,
             None, None, {})
         cj.set_cookie(c)
-        cookie_handler = urllib2.HTTPCookieProcessor(cj)
+        cookie_handler = HTTPCookieProcessor(cj)
         opener = self._build_opener(cookie_handler)
-        urllib2.install_opener(opener)
+        install_opener(opener)
 
     def get_attachment_download_url(self, attachment):
         """Returns the URL for downloading provided Attachment.
@@ -2069,11 +2096,11 @@ class Shotgun(object):
         return session_token
 
     def _build_opener(self, handler):
-        """Build urllib2 opener with appropriate proxy handler."""
+        """Build url opener with appropriate proxy handler."""
         if self.config.proxy_handler:
-            opener = urllib2.build_opener(self.config.proxy_handler, handler)
+            opener = build_opener(self.config.proxy_handler, handler)
         else:
-            opener = urllib2.build_opener(handler)
+            opener = build_opener(handler)
         return opener
 
     def _turn_off_ssl_validation(self):
@@ -2119,7 +2146,7 @@ class Shotgun(object):
         LOG.debug("Completed rpc call to %s" % (method))
         try:
             self._parse_http_status(http_status)
-        except ProtocolError, e:
+        except ProtocolError as e:
             e.headers = resp_headers
             # 403 is returned with custom error page when api access is blocked
             if e.errcode == 403:
@@ -2229,7 +2256,7 @@ class Shotgun(object):
         """
 
         wire = json.dumps(payload, ensure_ascii=False)
-        if isinstance(wire, unicode):
+        if isinstance(wire, str):
             return wire.encode("utf-8")
         return wire
 
@@ -2252,7 +2279,7 @@ class Shotgun(object):
             attempt += 1
             try:
                 return self._http_request(verb, path, body, req_headers)
-            except SSLHandshakeError, e:
+            except SSLHandshakeError as e:
                 # Test whether the exception is due to the fact that this is an older version of
                 # Python that cannot validate certificates encrypted with SHA-2. If it is, then 
                 # fall back on disabling the certificate validation and try again - unless the
@@ -2285,7 +2312,7 @@ class Shotgun(object):
                 if attempt == max_rpc_attempts:
                     raise
             except Exception:
-                #TODO: LOG ?
+                # TODO: LOG ?
                 self._close_connection()
                 if attempt == max_rpc_attempts:
                     raise
@@ -2366,7 +2393,7 @@ class Shotgun(object):
         def _decode_list(lst):
             newlist = []
             for i in lst:
-                if isinstance(i, unicode):
+                if isinstance(i, str):
                     i = i.encode('utf-8')
                 elif isinstance(i, list):
                     i = _decode_list(i)
@@ -2375,17 +2402,17 @@ class Shotgun(object):
 
         def _decode_dict(dct):
             newdict = {}
-            for k, v in dct.iteritems():
-                if isinstance(k, unicode):
+            # TODO: inefficient in Python 2 - maybe there is a better solution
+            for (k, v) in dct.items():
+                if isinstance(k, str):
                     k = k.encode('utf-8')
-                if isinstance(v, unicode):
+                if isinstance(v, str):
                     v = v.encode('utf-8')
                 elif isinstance(v, list):
                     v = _decode_list(v)
                 newdict[k] = v
             return newdict
         return json.loads(body, object_hook=_decode_dict)
-
 
     def _response_errors(self, sg_response):
         """Raises any API errors specified in the response.
@@ -2486,7 +2513,7 @@ class Shotgun(object):
             _change_tz = None
 
         def _inbound_visitor(value):
-            if isinstance(value, basestring):
+            if isinstance(value, str):
                 if len(value) == 20 and self._DATE_TIME_PATTERN.match(value):
                     try:
                         # strptime was not on datetime in python2.4
@@ -2565,12 +2592,12 @@ class Shotgun(object):
                 continue
 
             # iterate over each item and check each field for possible injection
-            for k, v in rec.iteritems():
+            for (k, v) in rec.items():
                 if not v:
                     continue
 
                 # Check for html entities in strings
-                if isinstance(v, types.StringTypes):
+                if isinstance(v, str):
                     rec[k] = rec[k].replace('&lt;', '<')
 
                 # check for thumbnail for older version (<3.3.0) of shotgun
@@ -2653,25 +2680,61 @@ class Shotgun(object):
 
 # Helpers from the previous API, left as is.
 
+# Global Prefix used for the mimetools.check_boundary replacement
+_BOUNDARY_PREFIX = None
+
+
 # Based on http://code.activestate.com/recipes/146306/
-class FormPostHandler(urllib2.BaseHandler):
+class FormPostHandler(BaseHandler):
     """
     Handler for multipart form data
     """
-    handler_order = urllib2.HTTPHandler.handler_order - 10 # needs to run first
+    handler_order = HTTPHandler.handler_order - 10 # needs to run first
+
+    # Python 2/3 compatible replacement for the mimetools.check_boundary method
+    def choose_boundary(self):
+        """Return a random string usable as a multipart boundary.
+        The method used is so that it is *very* unlikely that the same
+        string of characters will every occur again in the Universe,
+        so the caller needn't check the data it is packing for the
+        occurrence of the boundary.
+
+        The boundary contains dots so you have to quote it in the header."""
+
+        global _BOUNDARY_PREFIX
+        import time
+        import random
+
+        if _BOUNDARY_PREFIX is None:
+            import socket
+            import os
+            hostid = socket.gethostbyname(socket.gethostname())
+            try:
+                uid = repr(os.getuid())
+            except:
+                uid = '1'
+            try:
+                pid = repr(os.getpid())
+            except:
+                pid = '1'
+            _BOUNDARY_PREFIX = hostid + '.' + uid + '.' + pid
+        timestamp = '%.3f' % time.time()
+        seed = repr(random.randint(0, 32767))
+
+        return _BOUNDARY_PREFIX + '.' + timestamp + '.' + seed
 
     def http_request(self, request):
         data = request.get_data()
-        if data is not None and not isinstance(data, basestring):
+        if data is not None and not isinstance(data, str):
             files = []
             params = []
             for key, value in data.items():
-                if isinstance(value, file):
+                if isinstance(value, IOBase):
                     files.append((key, value))
                 else:
                     params.append((key, value))
             if not files:
-                data = urllib.urlencode(params, True) # sequencing on
+                data = urllib.urlencode(params, True)  # sequencing on
             else:
                 boundary, data = self.encode(params, files)
                 content_type = 'multipart/form-data; boundary=%s' % boundary
@@ -2681,7 +2744,7 @@ class FormPostHandler(urllib2.BaseHandler):
 
     def encode(self, params, files, boundary=None, buffer=None):
         if boundary is None:
-            boundary = mimetools.choose_boundary()
+            boundary = self.choose_boundary()
         if buffer is None:
             buffer = cStringIO.StringIO()
         for (key, value) in params:
