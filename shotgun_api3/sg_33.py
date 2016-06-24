@@ -4,7 +4,7 @@ import sys
 import os
 import logging
 
-from .lib.httplib2.python3.httplib2 import Http, ProxyInfo, socks, HttpLib2Error
+from .lib.httplib2 import Http, ProxyInfo, socks, HttpLib2Error
 from .lib.sgtimezone import SgTimezone
 from xmlrpc.client import Error, ProtocolError, ResponseError
 

@@ -1,8 +1,10 @@
+from __future__ import absolute_import
+
 import sys
 import os
 import logging
 
-from .lib.httplib2.python2.httplib2 import Http, ProxyInfo, socks, HttpLib2Error
+from .lib.httplib2 import Http, ProxyInfo, socks, HttpLib2Error
 from .lib.sgtimezone import SgTimezone
 from .lib.xmlrpclib import Error, ProtocolError, ResponseError
 

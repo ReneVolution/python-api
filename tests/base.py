@@ -8,6 +8,10 @@ try:
 except ImportError:
     import ConfigParser as configparser
 
+try:
+    import basestring
+except ImportError:
+    basestring = (str, bytes)
 
 from . import mock
 
@@ -16,6 +20,7 @@ from shotgun_api3.shotgun import json
 from shotgun_api3.shotgun import ServerCapabilities
 
 CONFIG_PATH = 'tests/config'
+
 
 class TestBase(unittest.TestCase):
     '''Base class for tests.
@@ -107,7 +112,7 @@ class MockTestBase(TestBase):
         #also replace the function that is called to get the http connection
         #to avoid calling the server. OK to return a mock as we will not use
         #it
-        self.mock_conn = mock.Mock(spec=api.lib.httplib2.Http)
+        self.mock_conn = mock.Mock(spec=api.lib.httplib2)
         #The Http objects connection property is a dict of connections
         #it is holding
         self.mock_conn.connections = dict()

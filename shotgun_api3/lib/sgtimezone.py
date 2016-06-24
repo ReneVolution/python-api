@@ -1,4 +1,3 @@
-from builtins import object
 #! /opt/local/bin/python
 # ----------------------------------------------------------------------------
 #  SG_TIMEZONE module

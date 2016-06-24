@@ -2,6 +2,7 @@
 CRUD functions. These tests always use a mock http connection so not not
 need a live server to run against."""
 from __future__ import absolute_import
+from __future__ import unicode_literals
 
 import base64
 import datetime
@@ -14,6 +15,12 @@ except ImportError:
     except ImportError:
         import shotgun_api3.lib.simplejson as json
 
+try:
+    import basestring
+except ImportError:
+    basestring = (str, bytes)
+
+
 import platform
 import sys
 import time
@@ -24,6 +31,7 @@ import shotgun_api3.lib.httplib2 as httplib2
 import shotgun_api3 as api
 from shotgun_api3.shotgun import ServerCapabilities, SG_TIMEZONE
 from . import base
+
 
 class TestShotgunClient(base.MockTestBase):
     '''Test case for shotgun api with server interactions mocked.'''

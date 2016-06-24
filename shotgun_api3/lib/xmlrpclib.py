@@ -136,26 +136,21 @@ Exported functions:
   loads          Convert an XML-RPC packet to unmarshalled data plus a method
                  name (None if not present).
 """
-from past.builtins import cmp
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
 
 import re, string, time, operator
 
 from types import *
 import socket
 import errno
-import http.client
+import httplib
 
 # --------------------------------------------------------------------
 # Internal stuff
 
 try:
-    str
+    unicode
 except NameError:
-    str = None # unicode support not available
+    unicode = None # unicode support not available
 
 try:
     import datetime
@@ -170,8 +165,8 @@ except NameError:
 
 def _decode(data, encoding, is8bit=re.compile("[\x80-\xff]").search):
     # decode non-ascii string (if possible)
-    if str and encoding and is8bit(data):
-        data = str(data, encoding)
+    if unicode and encoding and is8bit(data):
+        data = unicode(data, encoding)
     return data
 
 def escape(s, replace=string.replace):
@@ -179,7 +174,7 @@ def escape(s, replace=string.replace):
     s = replace(s, "<", "&lt;")
     return replace(s, ">", "&gt;",)
 
-if str:
+if unicode:
     def _stringify(string):
         # convert to 7-bit ascii if possible
         try:
@@ -297,7 +292,7 @@ if _bool_is_builtin:
     # to avoid breaking code which references xmlrpclib.{True,False}
     True, False = True, False
 else:
-    class Boolean(object):
+    class Boolean:
         """Boolean-value wrapper.
         
         Use True or False to generate a "boolean" XML-RPC value.
@@ -323,7 +318,7 @@ else:
         def __int__(self):
             return self.value
         
-        def __bool__(self):
+        def __nonzero__(self):
             return self.value
     
     True, False = Boolean(1), Boolean(0)

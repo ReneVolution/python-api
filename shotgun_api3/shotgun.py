@@ -39,7 +39,6 @@ import copy
 import stat         # used for attachment upload
 import sys
 import time
-import urllib
 import shutil       # used for attachment download
 
 from io import IOBase
@@ -56,7 +55,7 @@ except ImportError:
 
 
 try:
-    from urllib.parse import urlparse
+    from urllib.parse import urlparse, urlunparse, quote, unquote, urlencode
     from urllib.error import HTTPError, URLError
     from urllib.request import (BaseHandler, Request, urlopen, HTTPHandler,
                                 ProxyHandler, HTTPCookieProcessor,
@@ -64,8 +63,8 @@ try:
                                 splituser)
 
 except ImportError:  # Python 2 fallback
-    from urllib import splituser
-    from urlparse import urlsplit, urljoin
+    from urllib import splituser, quote, unquote, urlencode
+    from urlparse import urlsplit, urljoin, urlunparse
     from urllib2 import (HTTPError, URLError, Request, urlopen, BaseHandler,
                          HTTPHandler, ProxyHandler, HTTPCookieProcessor,
                          install_opener, build_opener)
@@ -463,7 +462,7 @@ class Shotgun(object):
         # and auth header
         auth, self.config.server = splituser(urlsplit(base_url).netloc)
         if auth:
-            auth = base64.encodestring(urllib.unquote(auth))
+            auth = base64.encodestring(unquote(auth))
             self.config.authorization = "Basic " + auth.strip()
 
         # foo:bar@123.456.789.012:3456
@@ -1475,7 +1474,7 @@ class Shotgun(object):
 
         # Create opener with extended form post support
         opener = self._build_opener(FormPostHandler)
-        url = urlparse.urlunparse((self.config.scheme, self.config.server,
+        url = urlunparse((self.config.scheme, self.config.server,
             "/upload/share_thumbnail", None, None, None))
 
         # Perform the request
@@ -1569,14 +1568,14 @@ class Shotgun(object):
         params.update(self._auth_params())
 
         if is_thumbnail:
-            url = urlparse.urlunparse((self.config.scheme, self.config.server,
+            url = urlunparse((self.config.scheme, self.config.server,
                 "/upload/publish_thumbnail", None, None, None))
             params["thumb_image"] = open(path, "rb")
             if field_name == "filmstrip_thumb_image" or field_name == "filmstrip_image":
                 params["filmstrip"] = True
 
         else:
-            url = urlparse.urlunparse((self.config.scheme, self.config.server,
+            url = urlunparse((self.config.scheme, self.config.server,
                 "/upload/upload_file", None, None, None))
             if display_name is None:
                 display_name = os.path.basename(path)
@@ -1753,8 +1752,8 @@ class Shotgun(object):
                 "dict, int, or NoneType. Instead got %s" % type(attachment))
 
         if attachment_id: 
-            url = urlparse.urlunparse((self.config.scheme, self.config.server,
-                "/file_serve/attachment/%s" % urllib.quote(str(attachment_id)),
+            url = urlunparse((self.config.scheme, self.config.server,
+                "/file_serve/attachment/%s" % quote(str(attachment_id)),
                 None, None, None))
         return url
 
@@ -2324,7 +2323,7 @@ class Shotgun(object):
     def _http_request(self, verb, path, body, headers):
         """Makes the actual HTTP request.
         """
-        url = urlparse.urlunparse((self.config.scheme, self.config.server,
+        url = urlunparse((self.config.scheme, self.config.server,
             path, None, None, None))
         LOG.debug("Request is %s:%s" % (verb, url))
         LOG.debug("Request headers are %s" % headers)
@@ -2636,8 +2635,8 @@ class Shotgun(object):
         # curl "https://foo.com/upload/get_thumbnail_url?entity_type=Version&entity_id=1"
         # 1
         # /files/0000/0000/0012/232/shot_thumb.jpg.jpg
-        entity_info = {'e_type':urllib.quote(entity_type),
-                       'e_id':urllib.quote(str(entity_id))}
+        entity_info = {'e_type':quote(entity_type),
+                       'e_id':quote(str(entity_id))}
         url = ("/upload/get_thumbnail_url?" +
                 "entity_type=%(e_type)s&entity_id=%(e_id)s" % entity_info)
 
@@ -2651,7 +2650,7 @@ class Shotgun(object):
             raise ShotgunError(thumb_url)
 
         if code == 1:
-            return urlparse.urlunparse((self.config.scheme,
+            return urlunparse((self.config.scheme,
                 self.config.server, thumb_url.strip(), None, None, None))
 
         # Comments in prev version said we can get this sometimes.
@@ -2738,7 +2737,7 @@ class FormPostHandler(BaseHandler):
                 else:
                     params.append((key, value))
             if not files:
-                data = urllib.urlencode(params, True)  # sequencing on
+                data = urlencode(params, True)  # sequencing on
             else:
                 boundary, data = self.encode(params, files)
                 content_type = 'multipart/form-data; boundary=%s' % boundary
