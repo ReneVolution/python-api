@@ -3,7 +3,10 @@ from __future__ import absolute_import
 import os
 import re
 import unittest
-from ConfigParser import ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 
 
 from . import mock
@@ -314,7 +317,7 @@ class SgTestConfig(object):
         ]
 
     def read_config(self, config_path):
-        config_parser = ConfigParser()
+        config_parser = configparser.ConfigParser()
         config_parser.read(config_path)
         for section in config_parser.sections():
             for option in config_parser.options(section):

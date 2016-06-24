@@ -56,21 +56,25 @@ except ImportError:
 
 
 try:
+    from urllib.parse import urlparse
     from urllib.error import HTTPError, URLError
     from urllib.request import (BaseHandler, Request, urlopen, HTTPHandler,
                                 ProxyHandler, HTTPCookieProcessor,
-                                install_opener, build_opener)
+                                install_opener, build_opener, urlsplit, urljoin,
+                                splituser)
 
-    from urllib.parse import urlparse
 except ImportError:  # Python 2 fallback
-    import urlparse
+    from urllib import splituser
+    from urlparse import urlsplit, urljoin
     from urllib2 import (HTTPError, URLError, Request, urlopen, BaseHandler,
                          HTTPHandler, ProxyHandler, HTTPCookieProcessor,
                          install_opener, build_opener)
 
 
 # relative import for versions >=2.5 and package import for python versions <2.5
-if (sys.version_info[0] > 2) or (sys.version_info[0] == 2 and sys.version_info[1] >= 6):
+if sys.version_info[0] > 2:
+    from .sg_33 import *
+elif (sys.version_info[0] == 2 and sys.version_info[1] >= 6):
     from .sg_26 import *
 elif (sys.version_info[0] > 2) or (sys.version_info[0] == 2 and sys.version_info[1] >= 5):
     from .sg_25 import *
@@ -446,18 +450,18 @@ class Shotgun(object):
 
         self.base_url = (base_url or "").lower()
         self.config.scheme, self.config.server, api_base, _, _ = \
-            urlparse.urlsplit(self.base_url)
+            urlsplit(self.base_url)
         if self.config.scheme not in ("http", "https"):
             raise ValueError("base_url must use http or https got '%s'" %
                 self.base_url)
-        self.config.api_path = urlparse.urljoin(urlparse.urljoin(
+        self.config.api_path = urljoin(urljoin(
             api_base or "/", self.config.api_ver + "/"), "json")
 
 
         # if the service contains user information strip it out
         # copied from the xmlrpclib which turned the user:password into
         # and auth header
-        auth, self.config.server = urllib.splituser(urlparse.urlsplit(base_url).netloc)
+        auth, self.config.server = splituser(urlsplit(base_url).netloc)
         if auth:
             auth = base64.encodestring(urllib.unquote(auth))
             self.config.authorization = "Basic " + auth.strip()
@@ -2279,7 +2283,7 @@ class Shotgun(object):
             attempt += 1
             try:
                 return self._http_request(verb, path, body, req_headers)
-            except SSLHandshakeError as e:
+            except HttpLib2Error as e:
                 # Test whether the exception is due to the fact that this is an older version of
                 # Python that cannot validate certificates encrypted with SHA-2. If it is, then 
                 # fall back on disabling the certificate validation and try again - unless the
