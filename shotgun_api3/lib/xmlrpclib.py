@@ -290,7 +290,9 @@ class Fault(Error):
 if _bool_is_builtin:
     boolean = Boolean = bool
     # to avoid breaking code which references xmlrpclib.{True,False}
-    True, False = True, False
+
+    # TODO: find a fix for that
+    # True, False = True, False
 else:
     class Boolean:
         """Boolean-value wrapper.
@@ -320,8 +322,9 @@ else:
         
         def __nonzero__(self):
             return self.value
-    
-    True, False = Boolean(1), Boolean(0)
+
+    # TODO: find a fix for that
+    # True, False = Boolean(1), Boolean(0)
     
     ##
     # Map true or false value to XML-RPC boolean values.

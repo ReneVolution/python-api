@@ -2,10 +2,13 @@
 
 Includes the schema functions and the automated searching for all entity types
 """
+from __future__ import unicode_literals
+from __future__ import print_function
 
-import base
+from tests import base
 import random
 import shotgun_api3
+
 
 class TestShotgunApiLong(base.LiveTestBase):
 
@@ -20,18 +23,18 @@ class TestShotgunApiLong(base.LiveTestBase):
             if entity_type in ("Asset", "Task", "Shot", "Attachment",
                                "Candidate"):
                 continue
-            print "Finding entity type", entity_type
+            print("Finding entity type", entity_type)
 
             fields = self.sg.schema_field_read(entity_type)
             if not fields:
-                print "No fields for %s skipping" % (entity_type,)
+                print("No fields for %s skipping" % (entity_type,))
                 continue
 
             # trying to use some different code paths to the other find test
             # pivot_column fields aren't valid for sorting so ensure we're 
             # not using one.
             order_field = None
-            for field_name, field in fields.iteritems():
+            for (field_name, field) in fields.items():
                 if field['data_type']["value"] != 'pivot_column':
                     order_field = field_name
                     break       

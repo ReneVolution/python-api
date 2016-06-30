@@ -30,6 +30,7 @@
 """
 from __future__ import absolute_import
 from __future__ import unicode_literals
+from __future__ import print_function
 
 
 import base64
@@ -41,17 +42,12 @@ import sys
 import time
 import shutil       # used for attachment download
 
-from io import IOBase
-
 try:
     import http.cookiejar as cookielib    # used for attachment upload
 except ImportError:  # fallback for Python 2
     import cookielib
 
-try:
-    from io import BytesIO as cStringIO    # used for attachment upload
-except ImportError:
-    import cStringIO
+from io import StringIO, BytesIO  # used for attachment upload
 
 
 try:
@@ -68,6 +64,11 @@ except ImportError:  # Python 2 fallback
     from urllib2 import (HTTPError, URLError, Request, urlopen, BaseHandler,
                          HTTPHandler, ProxyHandler, HTTPCookieProcessor,
                          install_opener, build_opener)
+
+try:
+    basestring
+except NameError:
+    basestring = (str, bytes)
 
 
 # relative import for versions >=2.5 and package import for python versions <2.5
@@ -461,6 +462,8 @@ class Shotgun(object):
         # copied from the xmlrpclib which turned the user:password into
         # and auth header
         auth, self.config.server = splituser(urlsplit(base_url).netloc)
+
+
         if auth:
             auth = base64.encodestring(unquote(auth))
             self.config.authorization = "Basic " + auth.strip()
@@ -489,10 +492,10 @@ class Shotgun(object):
 
             # now populate self.config.proxy_handler
             if self.config.proxy_user and self.config.proxy_pass:
-                auth_string = "%s:%s@" % (self.config.proxy_user, self.config.proxy_pass)
+                auth_string = "{0}:{1}@".format(self.config.proxy_user, self.config.proxy_pass)
             else:
                 auth_string = ""
-            proxy_addr = "http://%s%s:%d" % (auth_string, self.config.proxy_server, self.config.proxy_port)
+            proxy_addr = "http://{0}{1}:{2}".format(auth_string, self.config.proxy_server, self.config.proxy_port)
             self.config.proxy_handler = ProxyHandler({self.config.scheme: proxy_addr})
 
         if ensure_ascii:
@@ -734,7 +737,7 @@ class Shotgun(object):
                                    additional_filter_presets):
         params = {}
         params["type"] = entity_type
-        params["return_fields"] = fields or ["id"]
+        params["return_fields"] = list(fields) if fields else ["id"]
         params["filters"] = filters
         params["return_only"] = (retired_only and 'retired') or "active"
         params["return_paging_info"] = True
@@ -887,7 +890,7 @@ class Shotgun(object):
         params = {
             "type" : entity_type,
             "fields" : self._dict_to_list(data),
-            "return_fields" : return_fields
+            "return_fields" : list(return_fields)
         }
 
         record = self._call_rpc("create", params, first=True)
@@ -1055,7 +1058,11 @@ class Shotgun(object):
             if req["request_type"] == "create":
                 _required_keys("Batched create request", ['data'], req)
                 request_params['fields'] = self._dict_to_list(req["data"])
-                request_params["return_fields"] = req.get("return_fields") or["id"]
+                return_fields = req.get("return_fields")
+                # ensure return fields is a list - could be dict_keys object
+                if return_fields:
+                    return_fields = list(return_fields)
+                request_params["return_fields"] = return_fields or ["id"]
             elif req["request_type"] == "update":
                 _required_keys("Batched update request",
                                ['entity_id', 'data'],
@@ -1101,7 +1108,7 @@ class Shotgun(object):
             raise ShotgunError("Work schedule support requires server version 3.2 or "\
                 "higher, server is %s" % (self.server_caps.version,))
 
-        if not isinstance(start_date, str) or not isinstance(end_date, str):
+        if not isinstance(start_date, basestring) or not isinstance(end_date, basestring):
             raise ShotgunError("The start_date and end_date arguments must be strings in YYYY-MM-DD format")
 
         params = dict(
@@ -1130,7 +1137,7 @@ class Shotgun(object):
             raise ShotgunError("Work schedule support requires server version 3.2 or "\
                 "higher, server is %s" % (self.server_caps.version,))
 
-        if not isinstance(date, str):
+        if not isinstance(date, basestring):
             raise ShotgunError("The date argument must be string in YYYY-MM-DD format")
 
         params = dict(
@@ -1569,14 +1576,14 @@ class Shotgun(object):
 
         if is_thumbnail:
             url = urlunparse((self.config.scheme, self.config.server,
-                "/upload/publish_thumbnail", None, None, None))
+                b"/upload/publish_thumbnail", None, None, None))
             params["thumb_image"] = open(path, "rb")
             if field_name == "filmstrip_thumb_image" or field_name == "filmstrip_image":
                 params["filmstrip"] = True
 
         else:
             url = urlunparse((self.config.scheme, self.config.server,
-                "/upload/upload_file", None, None, None))
+                b"/upload/upload_file", None, None, None))
             if display_name is None:
                 display_name = os.path.basename(path)
             # we allow linking to nothing for generic reference use cases
@@ -1588,6 +1595,16 @@ class Shotgun(object):
                 params["tag_list"] = tag_list
 
             params["file"] = open(path, "rb")
+
+        bytes_params = {}
+        for (k, v) in params.items():
+            if isinstance(k, basestring):
+                k = k.encode()
+
+            if isinstance(v, basestring):
+                v = v.encode()
+
+            bytes_params[k] = v
 
         # Create opener with extended form post support
         opener = self._build_opener(FormPostHandler)
@@ -1753,7 +1770,7 @@ class Shotgun(object):
 
         if attachment_id: 
             url = urlunparse((self.config.scheme, self.config.server,
-                "/file_serve/attachment/%s" % quote(str(attachment_id)),
+                "/file_serve/attachment/{}".format(quote(str(attachment_id))),
                 None, None, None))
         return url
 
@@ -2144,9 +2161,12 @@ class Shotgun(object):
             "content-type" : "application/json; charset=utf-8",
             "connection" : "keep-alive"
         }
+
         http_status, resp_headers, body = self._make_call("POST",
             self.config.api_path, encoded_payload, req_headers)
+
         LOG.debug("Completed rpc call to %s" % (method))
+
         try:
             self._parse_http_status(http_status)
         except ProtocolError as e:
@@ -2258,9 +2278,9 @@ class Shotgun(object):
         be in a single byte encoding to go over the wire.
         """
 
-        wire = json.dumps(payload, ensure_ascii=False)
-        if isinstance(wire, str):
-            return wire.encode("utf-8")
+        wire = json.dumps(payload, ensure_ascii=True)
+        # if isinstance(wire, basestring):
+        #     return wire.encode("utf-8")
         return wire
 
     def _make_call(self, verb, path, body, headers):
@@ -2335,8 +2355,8 @@ class Shotgun(object):
         #http response code is handled else where
         http_status = (resp.status, resp.reason)
         resp_headers = dict(
-            (k.lower(), v)
-            for k, v in resp.iteritems()
+            (k.lower().encode('ascii'), v.encode('ascii'))
+            for (k, v) in resp.items()
         )
         resp_body = content
 
@@ -2393,29 +2413,31 @@ class Shotgun(object):
 
     def _json_loads_ascii(self, body):
         """"See http://stackoverflow.com/questions/956867"""
-        def _decode_list(lst):
-            newlist = []
-            for i in lst:
-                if isinstance(i, str):
-                    i = i.encode('utf-8')
-                elif isinstance(i, list):
-                    i = _decode_list(i)
-                newlist.append(i)
-            return newlist
+        # def _decode_list(lst):
+        #     newlist = []
+        #     for i in lst:
+        #         if isinstance(i, str):
+        #             i = i.encode('utf-8')
+        #         elif isinstance(i, list):
+        #             i = _decode_list(i)
+        #         newlist.append(i)
+        #     return newlist
+        #
+        # def _decode_dict(dct):
+        #     newdict = {}
+        #     # TODO: inefficient in Python 2 - maybe there is a better solution
+        #     for (k, v) in dct.items():
+        #         if isinstance(k, str):
+        #             k = k.encode('utf-8')
+        #         if isinstance(v, str):
+        #             v = v.encode('utf-8')
+        #         elif isinstance(v, list):
+        #             v = _decode_list(v)
+        #         newdict[k] = v
+        #     return newdict
 
-        def _decode_dict(dct):
-            newdict = {}
-            # TODO: inefficient in Python 2 - maybe there is a better solution
-            for (k, v) in dct.items():
-                if isinstance(k, str):
-                    k = k.encode('utf-8')
-                if isinstance(v, str):
-                    v = v.encode('utf-8')
-                elif isinstance(v, list):
-                    v = _decode_list(v)
-                newdict[k] = v
-            return newdict
-        return json.loads(body, object_hook=_decode_dict)
+        # return json.loads(body, object_hook=_decode_dict)
+        return json.loads(body.decode('utf-8'))
 
     def _response_errors(self, sg_response):
         """Raises any API errors specified in the response.
@@ -2452,7 +2474,7 @@ class Shotgun(object):
         if isinstance(data, dict):
             return dict(
                 (k, recursive(v, visitor))
-                for k, v in data.iteritems()
+                for (k, v) in data.items()
             )
 
         return visitor(data)
@@ -2495,9 +2517,10 @@ class Shotgun(object):
                     value = _change_tz(value)
                 return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            if isinstance(value, str):
-                # Convert strings to unicode
-                return value.decode("utf-8")
+            # dropped in python 3
+            # if isinstance(value, str):
+            #     # Convert strings to unicode
+            #     return value.decode("utf-8")
 
             return value
 
@@ -2516,7 +2539,7 @@ class Shotgun(object):
             _change_tz = None
 
         def _inbound_visitor(value):
-            if isinstance(value, str):
+            if isinstance(value, basestring):
                 if len(value) == 20 and self._DATE_TIME_PATTERN.match(value):
                     try:
                         # strptime was not on datetime in python2.4
@@ -2600,7 +2623,7 @@ class Shotgun(object):
                     continue
 
                 # Check for html entities in strings
-                if isinstance(v, str):
+                if isinstance(v, basestring):
                     rec[k] = rec[k].replace('&lt;', '<')
 
                 # check for thumbnail for older version (<3.3.0) of shotgun
@@ -2635,12 +2658,14 @@ class Shotgun(object):
         # curl "https://foo.com/upload/get_thumbnail_url?entity_type=Version&entity_id=1"
         # 1
         # /files/0000/0000/0012/232/shot_thumb.jpg.jpg
-        entity_info = {'e_type':quote(entity_type),
-                       'e_id':quote(str(entity_id))}
-        url = ("/upload/get_thumbnail_url?" +
-                "entity_type=%(e_type)s&entity_id=%(e_id)s" % entity_info)
+        entity_info = {'e_type': quote(entity_type),
+                       'e_id': quote(str(entity_id))}
 
-        body = self._make_call("GET", url, None, None)[2]
+        url = ("/upload/get_thumbnail_url?" +
+               "entity_type={0}&entity_id={1}".format(entity_info.get('e_type'),
+                                                       entity_info.get('e_id')))
+
+        body = self._make_call("GET", url.encode(), None, None)[2]
 
         code, thumb_url = body.splitlines()
         code = int(code)
@@ -2650,8 +2675,8 @@ class Shotgun(object):
             raise ShotgunError(thumb_url)
 
         if code == 1:
-            return urlunparse((self.config.scheme,
-                self.config.server, thumb_url.strip(), None, None, None))
+            return urlunparse((self.config.scheme.encode(),
+                self.config.server.encode(), thumb_url.strip(), None, None, None))
 
         # Comments in prev version said we can get this sometimes.
         raise RuntimeError("Unknown code %s %s" % (code, thumb_url))
@@ -2667,7 +2692,7 @@ class Shotgun(object):
         [{'field_name': 'foo', 'value': 'bar', 'thing1': 'value1'}]
         """
         ret = []
-        for k, v in (d or {}).iteritems():
+        for k, v in (d or {}).items():
             d = {key_name: k, value_name: v}
             d.update((extra_data or {}).get(k, {}))
             ret.append(d)
@@ -2679,7 +2704,7 @@ class Shotgun(object):
 
         e.g. d {'foo' : 'bar'} changed to {'foo': {"value": 'bar'}]
         """
-        return dict([(k, {key_name: v}) for (k,v) in (d or {}).iteritems()])
+        return dict([(k, {key_name: v}) for (k,v) in (d or {}).items()])
 
 # Helpers from the previous API, left as is.
 
@@ -2727,12 +2752,16 @@ class FormPostHandler(BaseHandler):
         return _BOUNDARY_PREFIX + '.' + timestamp + '.' + seed
 
     def http_request(self, request):
-        data = request.get_data()
-        if data is not None and not isinstance(data, str):
+        try:
+            data = request.data
+        except AttributeError:  # Python 2 fallback
+            data = request.get_data()
+
+        if data is not None and not isinstance(data, basestring):
             files = []
             params = []
             for key, value in data.items():
-                if isinstance(value, IOBase):
+                if hasattr(value, 'read'):  # detect files
                     files.append((key, value))
                 else:
                     params.append((key, value))
@@ -2740,8 +2769,8 @@ class FormPostHandler(BaseHandler):
                 data = urlencode(params, True)  # sequencing on
             else:
                 boundary, data = self.encode(params, files)
-                content_type = 'multipart/form-data; boundary=%s' % boundary
-                request.add_unredirected_header('Content-Type', content_type)
+                content_type = 'multipart/form-data; boundary={}'.format(boundary)
+                request.add_unredirected_header(b'Content-Type', content_type.encode())
             request.add_data(data)
         return request
 
@@ -2749,25 +2778,26 @@ class FormPostHandler(BaseHandler):
         if boundary is None:
             boundary = self.choose_boundary()
         if buffer is None:
-            buffer = cStringIO.StringIO()
+            buffer = BytesIO()
         for (key, value) in params:
-            buffer.write('--%s\r\n' % boundary)
-            buffer.write('Content-Disposition: form-data; name="%s"' % key)
-            buffer.write('\r\n\r\n%s\r\n' % value)
+            buffer.write(b'--{}\r\n'.format(boundary))
+            buffer.write(b'Content-Disposition: form-data; name="{}"'.format(key))
+            buffer.write(b'\r\n\r\n{}\r\n'.format(value))
         for (key, fd) in files:
             filename = fd.name.split('/')[-1]
             content_type = mimetypes.guess_type(filename)[0]
-            content_type = content_type or 'application/octet-stream'
+            content_type = content_type or b'application/octet-stream'
             file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
-            buffer.write('--%s\r\n' % boundary)
-            c_dis = 'Content-Disposition: form-data; name="%s"; filename="%s"%s'
-            content_disposition = c_dis % (key, filename, '\r\n')
+            buffer.write(b'--{}\r\n'.format(boundary))
+            c_dis = b'Content-Disposition: form-data; name="{0}"; filename="{1}"{2}'
+            content_disposition = c_dis.format(key, filename, b'\r\n')
             buffer.write(content_disposition)
-            buffer.write('Content-Type: %s\r\n' % content_type)
-            buffer.write('Content-Length: %s\r\n' % file_size)
+            buffer.write(b'Content-Type: {}\r\n'.format(content_type))
+            buffer.write(b'Content-Length: {}\r\n'.format(file_size))
             fd.seek(0)
-            buffer.write('\r\n%s\r\n' % fd.read())
-        buffer.write('--%s--\r\n\r\n' % boundary)
+            file_data = fd.read()
+            buffer.write(b'\r\n{}\r\n'.format(file_data))
+        buffer.write(b'--{}--\r\n\r\n'.format(boundary))
         buffer = buffer.getvalue()
         return boundary, buffer
 

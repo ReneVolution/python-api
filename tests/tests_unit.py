@@ -1,8 +1,10 @@
 #! /opt/local/bin/python
 from __future__ import absolute_import
+from __future__ import unicode_literals
+
 import sys
 import unittest
-from .mock import patch, Mock
+from tests.mock import patch, Mock
 import shotgun_api3 as api
 
 if sys.version_info[0] > 2:
@@ -407,7 +409,7 @@ class TestFilters(unittest.TestCase):
 #     Makes sure that the mimetypes fix will be imported.
 #     """
 #
-#     @patch('shotgun_api3.sg_26.sys')
+#     @patch('shotgun_api3.sg_33.sys')
 #     def _test_mimetypes_import(self, platform, major, minor, patch, result, mock):
 #         """
 #         Mocks sys.platform and sys.version_info to test the mimetypes import code.
