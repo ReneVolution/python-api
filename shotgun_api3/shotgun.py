@@ -2736,7 +2736,11 @@ class FormPostHandler(BaseHandler):
         if _BOUNDARY_PREFIX is None:
             import socket
             import os
-            hostid = socket.gethostbyname(socket.gethostname())
+            try:
+                hostid = socket.gethostbyname(socket.gethostname())
+            except socket.gaierror:
+                hostid = '10.0.0.1'
+
             try:
                 uid = repr(os.getuid())
             except:
