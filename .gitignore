@@ -15,6 +15,7 @@ tests/config
 .cache
 .travis-solo
 htmlcov
+.env
 
 # setup related
 build
