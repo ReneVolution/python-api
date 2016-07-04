@@ -17,6 +17,11 @@ import unittest
 import warnings
 
 try:
+    basestring
+except NameError:
+    basestring = (bytes, str)
+
+try:
     from urllib.parse import urlparse, urlunparse
     from urllib.error import HTTPError
     from urllib.request import OpenerDirector
@@ -1804,8 +1809,7 @@ class TestHumanUserSudoAuth(base.TestBase):
         Request fails on server because user has no permission to Sudo.
         """
 
-        if not self.sg.server_caps.version or self.sg.server_caps.version < (
-        5, 3, 12):
+        if not self.sg.server_caps.version or self.sg.server_caps.version < (5, 3, 12):
             return
 
         x = shotgun_api3.Shotgun(self.config.server_url,
@@ -2634,11 +2638,20 @@ class TestReadAdditionalFilterPresets(base.LiveTestBase):
                           additional_filter_presets=additional_filters)
 
 
+def _is_unicode(string):
+    try:
+        string.encode('ascii', 'strict')
+    except UnicodeEncodeError:
+        return True
+
+    return False
+
+
 def _has_unicode(data):
     for k, v in data.items():
-        if isinstance(k, unicode):
+        if isinstance(k, basestring) and _is_unicode(k):
             return True
-        if isinstance(v, unicode):
+        if isinstance(v, basestring) and _is_unicode(v):
             return True
     return False
 

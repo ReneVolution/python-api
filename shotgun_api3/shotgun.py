@@ -2437,7 +2437,8 @@ class Shotgun(object):
         #     return newdict
 
         # return json.loads(body, object_hook=_decode_dict)
-        return json.loads(body.decode('utf-8'))
+        decoded_body = body.decode('utf-8')
+        return json.loads(decoded_body)
 
     def _response_errors(self, sg_response):
         """Raises any API errors specified in the response.

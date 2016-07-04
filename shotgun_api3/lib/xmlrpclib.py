@@ -292,7 +292,7 @@ if _bool_is_builtin:
     # to avoid breaking code which references xmlrpclib.{True,False}
 
     # TODO: find a fix for that
-    # True, False = True, False
+    True, False = True, False
 else:
     class Boolean:
         """Boolean-value wrapper.
@@ -324,7 +324,7 @@ else:
             return self.value
 
     # TODO: find a fix for that
-    # True, False = Boolean(1), Boolean(0)
+    True, False = Boolean(1), Boolean(0)
     
     ##
     # Map true or false value to XML-RPC boolean values.
