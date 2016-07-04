@@ -5,7 +5,8 @@ import sys
 
 if sys.version_info[0] > 2:
     from .python3.httplib2 import *
-    from .python3.httplib2 import socks
+    from .python3.httplib2 import socks, HttpLib2Error
+    from ssl import SSLError as SSLHandshakeError
 else:
     from .python2.httplib2 import *
-    from .python2.httplib2 import SSLHandshakeError, socks
+    from .python2.httplib2 import socks, SSLHandshakeError

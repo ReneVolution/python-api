@@ -31,7 +31,7 @@ except ImportError:  # Python 2 fallback
     from urllib2 import HTTPError, OpenerDirector
 
 import shotgun_api3
-from shotgun_api3.lib.httplib2 import Http, HttpLib2Error
+from shotgun_api3.lib.httplib2 import Http, SSLHandshakeError
 
 from tests import base
 
@@ -933,8 +933,8 @@ class TestDataTypes(base.LiveTestBase):
                                         [['id', 'is', entity_id]],
                                         [field_name])
         initial_value = query_result[field_name]
-        new_value = (initial_value == pos_values[0] and pos_values[1]) or \
-                    pos_values[0]
+        new_value = (initial_value == pos_values[0] and pos_values[1]) or pos_values[0]
+
         if multi_entity_update_mode:
             self.sg.update(entity, entity_id, {field_name: new_value},
                            multi_entity_update_modes={
@@ -1669,7 +1669,7 @@ class TestErrors(base.TestBase):
     @patch('shotgun_api3.shotgun.Http.request')
     def test_sha2_error(self, mock_request):
         # Simulate the SSLHandshakeError raised with SHA-2 errors
-        mock_request.side_effect = HttpLib2Error(
+        mock_request.side_effect = SSLHandshakeError(
             "[Errno 1] _ssl.c:480: error:0D0C50A1:asn1 "
             "encoding routines:ASN1_item_verify: unknown message digest "
             "algorithm")
@@ -1696,7 +1696,7 @@ class TestErrors(base.TestBase):
 
         try:
             result = self.sg.info()
-        except HttpLib2Error:
+        except SSLHandshakeError:
             # ensure the api has reset the values in the correct fallback behavior
             self.assertTrue(self.sg.config.no_ssl_validation)
             self.assertTrue(shotgun_api3.shotgun.NO_SSL_VALIDATION)
@@ -1710,7 +1710,7 @@ class TestErrors(base.TestBase):
     @patch('shotgun_api3.shotgun.Http.request')
     def test_sha2_error_with_strict(self, mock_request):
         # Simulate the SSLHandshakeError raised with SHA-2 errors
-        mock_request.side_effect = HttpLib2Error(
+        mock_request.side_effect = SSLHandshakeError(
             "[Errno 1] _ssl.c:480: error:0D0C50A1:asn1 "
             "encoding routines:ASN1_item_verify: unknown message digest "
             "algorithm")
@@ -1727,7 +1727,7 @@ class TestErrors(base.TestBase):
 
         try:
             result = self.sg.info()
-        except HttpLib2Error:
+        except SSLHandshakeError:
             # ensure the api has NOT reset the values in the fallback behavior because we have
             # set the env variable to force validation
             self.assertFalse(self.sg.config.no_ssl_validation)

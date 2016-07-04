@@ -251,9 +251,11 @@ class TestShotgunClient(base.MockTestBase):
         self.sg._http_request.side_effect = httplib2.HttpLib2Error
 
         self.assertRaises(httplib2.HttpLib2Error, self.sg.info)
-        self.assertTrue(
-            self.sg.config.max_rpc_attempts == self.sg._http_request.call_count,
-            "Call is repeated")
+
+        max_attempts = self.sg.config.max_rpc_attempts
+        attempts_made = self.sg._http_request.call_count
+
+        self.assertTrue(max_attempts == attempts_made, "Call is repeated")
 
     def test_http_error(self):
         """HTTP error raised and not retried."""

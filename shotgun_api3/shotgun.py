@@ -42,6 +42,7 @@ import sys
 import time
 import shutil       # used for attachment download
 
+
 try:
     import http.cookiejar as cookielib    # used for attachment upload
 except ImportError:  # fallback for Python 2
@@ -2302,7 +2303,7 @@ class Shotgun(object):
             attempt += 1
             try:
                 return self._http_request(verb, path, body, req_headers)
-            except HttpLib2Error as e:
+            except SSLHandshakeError as e:
                 # Test whether the exception is due to the fact that this is an older version of
                 # Python that cannot validate certificates encrypted with SHA-2. If it is, then 
                 # fall back on disabling the certificate validation and try again - unless the
