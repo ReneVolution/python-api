@@ -2324,7 +2324,7 @@ class Shotgun(object):
                 #   unknown message digest algorithm
                 # 
                 # Any other exceptions simply get raised.
-                if not str(e).endswith("unknown message digest algorithm") or \
+                if not "unknown message digest algorithm" in str(e) or \
                    "SHOTGUN_FORCE_CERTIFICATE_VALIDATION" in os.environ:
                     raise
                 
