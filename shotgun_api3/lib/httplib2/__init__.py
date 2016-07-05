@@ -1,12 +1,21 @@
 from __future__ import absolute_import
+from __future__ import unicode_literals
 
-
+import os
 import sys
 
-if sys.version_info[0] > 2:
-    from .python3.httplib2 import *
-    from .python3.httplib2 import socks, HttpLib2Error
+PY_MAJOR_VERSION = sys.version_info[0]
+
+httplib_include_path = os.path.join(os.path.dirname(__file__),
+                                    'python' + str(PY_MAJOR_VERSION))
+
+sys.path.append(httplib_include_path)
+
+
+if PY_MAJOR_VERSION > 2:
+    from httplib2 import *
+    from httplib2 import socks, HttpLib2Error
     from ssl import SSLError as SSLHandshakeError
 else:
-    from .python2.httplib2 import *
-    from .python2.httplib2 import socks, SSLHandshakeError
+    from httplib2 import *
+    from httplib2 import socks, SSLHandshakeError
