@@ -466,8 +466,8 @@ class Shotgun(object):
 
 
         if auth:
-            auth = base64.encodestring(unquote(auth))
-            self.config.authorization = "Basic " + auth.strip()
+            auth = base64.encodestring(unquote(auth).encode())
+            self.config.authorization = str(b"Basic " + auth.strip())
 
         # foo:bar@123.456.789.012:3456
         if http_proxy:
@@ -1776,7 +1776,7 @@ class Shotgun(object):
 
         if attachment_id: 
             url = urlunparse((self.config.scheme, self.config.server,
-                "/file_serve/attachment/{}".format(quote(str(attachment_id))),
+                "/file_serve/attachment/{0}".format(quote(str(attachment_id))),
                 None, None, None))
         return url
 
@@ -2793,7 +2793,7 @@ class FormPostHandler(BaseHandler):
                 data = urlencode(params, True)  # sequencing on
             else:
                 boundary, data = self.encode(params, files)
-                content_type = 'multipart/form-data; boundary={}'.format(boundary)
+                content_type = 'multipart/form-data; boundary={0}'.format(boundary)
                 request.add_unredirected_header(b'Content-Type', content_type.encode())
 
             try:
@@ -2809,24 +2809,24 @@ class FormPostHandler(BaseHandler):
         if buffer is None:
             buffer = BytesIO()
         for (key, value) in params:
-            buffer.write('--{}\r\n'.format(boundary).encode())
-            buffer.write('Content-Disposition: form-data; name="{}"'.format(key).encode())
-            buffer.write('\r\n\r\n{}\r\n'.format(value).encode())
+            buffer.write('--{0}\r\n'.format(boundary).encode())
+            buffer.write('Content-Disposition: form-data; name="{0}"'.format(key).encode())
+            buffer.write('\r\n\r\n{0}\r\n'.format(value).encode())
         for (key, fd) in files:
             filename = fd.name.split('/')[-1]
             content_type = mimetypes.guess_type(filename)[0]
             content_type = content_type or b'application/octet-stream'
             file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
-            buffer.write('--{}\r\n'.format(boundary).encode())
+            buffer.write('--{0}\r\n'.format(boundary).encode())
             c_dis = 'Content-Disposition: form-data; name="{0}"; filename="{1}"{2}'
             content_disposition = c_dis.format(key, filename, '\r\n').encode()
             buffer.write(content_disposition)
-            buffer.write('Content-Type: {}\r\n'.format(content_type).encode())
-            buffer.write('Content-Length: {}\r\n'.format(file_size).encode())
+            buffer.write('Content-Type: {0}\r\n'.format(content_type).encode())
+            buffer.write('Content-Length: {0}\r\n'.format(file_size).encode())
             fd.seek(0)
             file_data = fd.read()
             buffer.write(b'\r\n' + file_data + b'\r\n')
-        buffer.write('--{}--\r\n\r\n'.format(boundary).encode())
+        buffer.write('--{0}--\r\n\r\n'.format(boundary).encode())
         buffer = buffer.getvalue()
         return boundary, buffer
 
