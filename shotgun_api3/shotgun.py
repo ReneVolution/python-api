@@ -1323,7 +1323,7 @@ class Shotgun(object):
             "field_name" : field_name,
             "properties": [
                 {"property_name" : k, "value" : v}
-                for k, v in (properties or {}).iteritems()
+                for k, v in (properties or {}).items()
             ]
         }
 
@@ -1577,14 +1577,14 @@ class Shotgun(object):
 
         if is_thumbnail:
             url = urlunparse((self.config.scheme, self.config.server,
-                b"/upload/publish_thumbnail", None, None, None))
+                "/upload/publish_thumbnail", None, None, None))
             params["thumb_image"] = open(path, "rb")
             if field_name == "filmstrip_thumb_image" or field_name == "filmstrip_image":
                 params["filmstrip"] = True
 
         else:
             url = urlunparse((self.config.scheme, self.config.server,
-                b"/upload/upload_file", None, None, None))
+                "/upload/upload_file", None, None, None))
             if display_name is None:
                 display_name = os.path.basename(path)
             # we allow linking to nothing for generic reference use cases
@@ -1610,13 +1610,18 @@ class Shotgun(object):
         # Create opener with extended form post support
         opener = self._build_opener(FormPostHandler)
 
+        # ensure a bytestring url in Python 2
+        if sys.version_info[0] == 2:
+            url = url.encode()
+
         # Perform the request
         try:
-            result = opener.open(url, params).read()
+            request = Request(url, params)
+            result = opener.open(request).read().decode()
         except HTTPError as e:
             if e.code == 500:
                 raise ShotgunError("Server encountered an internal error. "
-                    "\n%s\n(%s)\n%s\n\n" % (url, self._sanitize_auth_params(params), e))
+                    "\n%s\n(%s)\n%s\n\n" % (url.encode(), self._sanitize_auth_params(params), e))
             else:
                 raise ShotgunError("Unanticipated error occurred uploading "
                     "%s: %s" % (path, e))
@@ -1992,7 +1997,7 @@ class Shotgun(object):
             raise ValueError("entity_types parameter must be a dictionary")
         
         api_entity_types = {}
-        for (entity_type, filter_list) in entity_types.iteritems():
+        for (entity_type, filter_list) in entity_types.items():
 
             if isinstance(filter_list, (list, tuple)):
                 resolved_filters = _translate_filters(filter_list, filter_operator=None)
@@ -2410,22 +2415,24 @@ class Shotgun(object):
         return body
 
     def _json_loads(self, body):
-        return json.loads(body)
+        return json.loads(str(body))
 
     def _json_loads_ascii(self, body):
         """"See http://stackoverflow.com/questions/956867"""
 
-        def escape_unicode(string):
+        def escape_ascii(string):
             try:
-                return string.encode('ascii', 'strict')
+                string.encode('ascii', 'strict')
             except UnicodeEncodeError:
-                return string.encode('unicode-escape')
+                return str(string.encode('unicode-escape'))
+
+            return string
 
         def _decode_list(lst):
             newlist = []
             for i in lst:
                 if isinstance(i, basestring):
-                    i = escape_unicode(i)
+                    i = escape_ascii(i)
                 elif isinstance(i, list):
                     i = _decode_list(i)
                 newlist.append(i)
@@ -2436,15 +2443,21 @@ class Shotgun(object):
             # TODO: inefficient in Python 2 - maybe there is a better solution
             for (k, v) in dct.items():
                 if isinstance(k, basestring):
-                    k = escape_unicode(k)
+                    k = escape_ascii(k)
                 if isinstance(v, basestring):
-                    v = escape_unicode(v)
+                    v = escape_ascii(v)
                 elif isinstance(v, list):
                     v = _decode_list(v)
                 newdict[k] = v
             return newdict
 
-        return json.loads(body, object_hook=_decode_dict)
+        # Only decode the body for Pythob 2
+        try:
+            body = body.decode('utf-8')
+        except:
+            pass
+
+        return json.loads(str(body), object_hook=_decode_dict)
 
     def _response_errors(self, sg_response):
         """Raises any API errors specified in the response.
@@ -2782,7 +2795,12 @@ class FormPostHandler(BaseHandler):
                 boundary, data = self.encode(params, files)
                 content_type = 'multipart/form-data; boundary={}'.format(boundary)
                 request.add_unredirected_header(b'Content-Type', content_type.encode())
-            request.add_data(data)
+
+            try:
+                request.data = data
+            except AttributeError:  # Python 2 fallback
+                request.add_data(data)
+
         return request
 
     def encode(self, params, files, boundary=None, buffer=None):
@@ -2791,24 +2809,24 @@ class FormPostHandler(BaseHandler):
         if buffer is None:
             buffer = BytesIO()
         for (key, value) in params:
-            buffer.write(b'--{}\r\n'.format(boundary))
-            buffer.write(b'Content-Disposition: form-data; name="{}"'.format(key))
-            buffer.write(b'\r\n\r\n{}\r\n'.format(value))
+            buffer.write('--{}\r\n'.format(boundary).encode())
+            buffer.write('Content-Disposition: form-data; name="{}"'.format(key).encode())
+            buffer.write('\r\n\r\n{}\r\n'.format(value).encode())
         for (key, fd) in files:
             filename = fd.name.split('/')[-1]
             content_type = mimetypes.guess_type(filename)[0]
             content_type = content_type or b'application/octet-stream'
             file_size = os.fstat(fd.fileno())[stat.ST_SIZE]
-            buffer.write(b'--{}\r\n'.format(boundary))
-            c_dis = b'Content-Disposition: form-data; name="{0}"; filename="{1}"{2}'
-            content_disposition = c_dis.format(key, filename, b'\r\n')
+            buffer.write('--{}\r\n'.format(boundary).encode())
+            c_dis = 'Content-Disposition: form-data; name="{0}"; filename="{1}"{2}'
+            content_disposition = c_dis.format(key, filename, '\r\n').encode()
             buffer.write(content_disposition)
-            buffer.write(b'Content-Type: {}\r\n'.format(content_type))
-            buffer.write(b'Content-Length: {}\r\n'.format(file_size))
+            buffer.write('Content-Type: {}\r\n'.format(content_type).encode())
+            buffer.write('Content-Length: {}\r\n'.format(file_size).encode())
             fd.seek(0)
             file_data = fd.read()
-            buffer.write(b'\r\n{}\r\n'.format(file_data))
-        buffer.write(b'--{}--\r\n\r\n'.format(boundary))
+            buffer.write(b'\r\n' + file_data + b'\r\n')
+        buffer.write('--{}--\r\n\r\n'.format(boundary).encode())
         buffer = buffer.getvalue()
         return boundary, buffer
 

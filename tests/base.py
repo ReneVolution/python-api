@@ -135,7 +135,7 @@ class MockTestBase(TestBase):
             return
 
         if not isinstance(data, basestring):
-            data = json.dumps(data, ensure_ascii=False, encoding="utf-8")
+            data = json.dumps(data, ensure_ascii=False)
 
         resp_headers = {
             'cache-control': 'no-cache',
