@@ -396,7 +396,7 @@ class TestShotgunClient(base.MockTestBase):
         self.assertTrue(isinstance(j, str))
 
     def test_decode_response_ascii(self):
-        self._assert_decode_resonse(True, u"my data \u00E0".encode('utf8'))
+        self._assert_decode_resonse(True, "my data \\u00E0")
 
     def test_decode_response_unicode(self):
         self._assert_decode_resonse(False, u"my data \u00E0")

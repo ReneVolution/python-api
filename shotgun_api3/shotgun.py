@@ -2414,32 +2414,37 @@ class Shotgun(object):
 
     def _json_loads_ascii(self, body):
         """"See http://stackoverflow.com/questions/956867"""
-        # def _decode_list(lst):
-        #     newlist = []
-        #     for i in lst:
-        #         if isinstance(i, str):
-        #             i = i.encode('utf-8')
-        #         elif isinstance(i, list):
-        #             i = _decode_list(i)
-        #         newlist.append(i)
-        #     return newlist
-        #
-        # def _decode_dict(dct):
-        #     newdict = {}
-        #     # TODO: inefficient in Python 2 - maybe there is a better solution
-        #     for (k, v) in dct.items():
-        #         if isinstance(k, str):
-        #             k = k.encode('utf-8')
-        #         if isinstance(v, str):
-        #             v = v.encode('utf-8')
-        #         elif isinstance(v, list):
-        #             v = _decode_list(v)
-        #         newdict[k] = v
-        #     return newdict
 
-        # return json.loads(body, object_hook=_decode_dict)
-        decoded_body = body.decode('utf-8')
-        return json.loads(decoded_body)
+        def escape_unicode(string):
+            try:
+                return string.encode('ascii', 'strict')
+            except UnicodeEncodeError:
+                return string.encode('unicode-escape')
+
+        def _decode_list(lst):
+            newlist = []
+            for i in lst:
+                if isinstance(i, basestring):
+                    i = escape_unicode(i)
+                elif isinstance(i, list):
+                    i = _decode_list(i)
+                newlist.append(i)
+            return newlist
+
+        def _decode_dict(dct):
+            newdict = {}
+            # TODO: inefficient in Python 2 - maybe there is a better solution
+            for (k, v) in dct.items():
+                if isinstance(k, basestring):
+                    k = escape_unicode(k)
+                if isinstance(v, basestring):
+                    v = escape_unicode(v)
+                elif isinstance(v, list):
+                    v = _decode_list(v)
+                newdict[k] = v
+            return newdict
+
+        return json.loads(body, object_hook=_decode_dict)
 
     def _response_errors(self, sg_response):
         """Raises any API errors specified in the response.
