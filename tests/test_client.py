@@ -169,7 +169,7 @@ class TestShotgunClient(base.MockTestBase):
         # login:password@domain
         auth_url = "%s%s@%s" % (self.uri_prefix, login_password, self.domain)
         sg = api.Shotgun(auth_url, None, None, connect=False)
-        expected = "Basic " + base64.encodestring(login_password).strip()
+        expected = str(b"Basic " + base64.encodestring(login_password.encode()).strip())
         self.assertEqual(expected, sg.config.authorization)
 
     def test_authorization(self):
